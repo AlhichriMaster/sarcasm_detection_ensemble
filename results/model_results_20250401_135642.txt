@@ -1,0 +1,51 @@
+Model Evaluation Results
+======================
+
+
+LSTM Model Results:
+--------------------------------------------------
+               precision    recall  f1-score   support
+
+Non-Sarcastic       0.86      0.88      0.87      2226
+    Sarcastic       0.84      0.82      0.83      1774
+
+     accuracy                           0.85      4000
+    macro avg       0.85      0.85      0.85      4000
+ weighted avg       0.85      0.85      0.85      4000
+
+
+Attention Model Results:
+--------------------------------------------------
+               precision    recall  f1-score   support
+
+Non-Sarcastic       0.84      0.91      0.88      2226
+    Sarcastic       0.88      0.79      0.83      1774
+
+     accuracy                           0.86      4000
+    macro avg       0.86      0.85      0.85      4000
+ weighted avg       0.86      0.86      0.86      4000
+
+
+Transformer Model Results:
+--------------------------------------------------
+               precision    recall  f1-score   support
+
+Non-Sarcastic       0.89      0.82      0.85      2226
+    Sarcastic       0.79      0.88      0.83      1774
+
+     accuracy                           0.84      4000
+    macro avg       0.84      0.85      0.84      4000
+ weighted avg       0.85      0.84      0.84      4000
+
+
+Ensemble Model Results:
+--------------------------------------------------
+               precision    recall  f1-score   support
+
+Non-Sarcastic       0.87      0.88      0.88      2226
+    Sarcastic       0.85      0.84      0.84      1774
+
+     accuracy                           0.86      4000
+    macro avg       0.86      0.86      0.86      4000
+ weighted avg       0.86      0.86      0.86      4000
+
