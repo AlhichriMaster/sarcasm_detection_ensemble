@@ -9,16 +9,17 @@ class SarcasmModels:
         self.embed_dim = embed_dim
         
     def build_lstm_model(self):
-        """Baseline LSTM model"""
+        """Baseline LSTM model with regularization"""
         model = Sequential([
             layers.Embedding(self.vocab_size, self.embed_dim, input_length=self.max_len),
-            layers.LSTM(128, return_sequences=True),
-            layers.LSTM(64),
+            layers.Dropout(0.4), 
+            layers.LSTM(256, return_sequences=True),
+            layers.GlobalAveragePooling1D(),
             layers.Dense(32, activation='relu'),
-            layers.Dropout(0.2),
+            layers.Dropout(0.4),
             layers.Dense(1, activation='sigmoid')
         ])
-        return model
+        return model  
     
     def build_attention_model(self):
         """Attention-based model"""
@@ -26,9 +27,9 @@ class SarcasmModels:
         embedding = layers.Embedding(self.vocab_size, self.embed_dim)(inputs)
         
         # Self-attention layer
-        attention = layers.MultiHeadAttention(num_heads=8, key_dim=self.embed_dim)(
+        attention = layers.MultiHeadAttention(num_heads=8, key_dim=16)(
             embedding, embedding)
-        attention = layers.LayerNormalization()(attention + embedding)
+        # attention = layers.LayerNormalization()(attention + embedding)
         
         lstm = layers.LSTM(64)(attention)
         dense = layers.Dense(32, activation='relu')(lstm)
@@ -36,15 +37,16 @@ class SarcasmModels:
         
         return Model(inputs=inputs, outputs=output)
     
-    def build_transformer_model(self):
-        """Transformer-based model"""
+    def build_transformer_model(self, num_blocks=1):
+        """Transformer-based model with configurable number of blocks"""
         inputs = layers.Input(shape=(self.max_len,))
-        embedding = layers.Embedding(self.vocab_size, self.embed_dim)(inputs)
+        x = layers.Embedding(self.vocab_size, self.embed_dim)(inputs)
         
-        # Transformer block
-        transformer_block = self._transformer_encoder(embedding)
+        # Stack multiple transformer blocks
+        for _ in range(num_blocks):
+            x = self._transformer_encoder(x)
         
-        pooled = layers.GlobalAveragePooling1D()(transformer_block)
+        pooled = layers.GlobalAveragePooling1D()(x)
         dense = layers.Dense(32, activation='relu')(pooled)
         output = layers.Dense(1, activation='sigmoid')(dense)
         
@@ -58,7 +60,7 @@ class SarcasmModels:
         attention = layers.LayerNormalization()(attention + inputs)
         
         # Feed-forward network
-        ffn = layers.Dense(128, activation='relu')(attention)
+        ffn = layers.Dense(256, activation='relu')(attention)
         ffn = layers.Dense(self.embed_dim)(ffn)
         ffn = layers.Dropout(0.1)(ffn)
         

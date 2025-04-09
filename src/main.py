@@ -2,48 +2,15 @@ import json
 from data.sarcasm_data_generator import SarcasmDataGenerator
 from models.ensemble_model import SarcasmEnsemble
 from models.sarcasm_models import SarcasmModels
-import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
 import os
+import tensorflow as tf
 
 # Create results directory if it doesn't exist
 results_dir = 'results'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
-
-def plot_confusion_matrix(y_true, y_pred, model_name, save_path):
-    """Plot and save confusion matrix"""
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    plt.title(f'Confusion Matrix - {model_name}')
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-    plt.savefig(save_path)
-    plt.close()
-
-def evaluate_model(model, dataset, steps, model_name):
-    """Evaluate model and return predictions and metrics"""
-    # Get predictions
-    predictions = model.predict(dataset, steps=steps)
-    y_pred = (predictions > 0.5).astype(int)
-    
-    # Get true labels from the original test data
-    y_true = test_labels[:len(y_pred)]
-    
-    # Generate classification report
-    report = classification_report(y_true, y_pred, target_names=['Non-Sarcastic', 'Sarcastic'])
-    
-    # Plot confusion matrix
-    plot_confusion_matrix(y_true, y_pred, model_name, 
-                         os.path.join(results_dir, f'confusion_matrix_{model_name}.png'))
-    
-    return y_pred, report
 
 # Load the JSON dataset
 def load_sarcasm_dataset(file_path):
@@ -75,6 +42,7 @@ data_generator.fit_tokenizer(train_texts)
 BATCH_SIZE = 32
 train_dataset = data_generator.generate_batches(train_texts, train_labels, batch_size=BATCH_SIZE)
 val_dataset = data_generator.generate_batches(val_texts, val_labels, batch_size=BATCH_SIZE)
+test_dataset = data_generator.generate_batches(test_texts, test_labels, batch_size=BATCH_SIZE, shuffle=False)
 
 # Initialize models
 model_builder = SarcasmModels(
@@ -86,87 +54,78 @@ model_builder = SarcasmModels(
 models = {
     'LSTM': model_builder.build_lstm_model(),
     'Attention': model_builder.build_attention_model(),
-    'Transformer': model_builder.build_transformer_model()
+    'Transformer': model_builder.build_transformer_model(1)
 }
 
 # Calculate steps per epoch
 steps_per_epoch = len(train_texts) // BATCH_SIZE
 validation_steps = len(val_texts) // BATCH_SIZE
+test_steps = len(test_texts) // BATCH_SIZE
 
 # Train and evaluate individual models
-model_histories = {}
+print("\n" + "="*50)
+print("INDIVIDUAL MODEL RESULTS")
+print("="*50)
+
+# Create directory for saved models if it doesn't exist
+saved_models_dir = 'saved_models'
+if not os.path.exists(saved_models_dir):
+    os.makedirs(saved_models_dir)
+
 for model_name, model in models.items():
     print(f"\nTraining {model_name} model...")
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
     
     # Train model
     history = model.fit(
         train_dataset,
         validation_data=val_dataset,
-        epochs=10,
+        epochs=5,
         steps_per_epoch=steps_per_epoch,
-        validation_steps=validation_steps
+        validation_steps=validation_steps,
+        verbose=1
     )
-    model_histories[model_name] = history.history
     
-    # Plot training history
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['loss'], label='Training Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title(f'{model_name} - Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
+    # Save model weights
+    model.save_weights(f'{saved_models_dir}/{model_name.lower()}.weights.h5')
     
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['accuracy'], label='Training Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title(f'{model_name} - Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
+    # Evaluate on test set
+    test_results = model.evaluate(test_dataset, steps=test_steps)
     
-    plt.tight_layout()
-    plt.savefig(os.path.join(results_dir, f'training_history_{model_name}.png'))
-    plt.close()
+    # Print results
+    print(f"\n{model_name} Model Results:")
+    print(f"Training Accuracy: {history.history['accuracy'][-1]:.4f}")
+    print(f"Validation Accuracy: {history.history['val_accuracy'][-1]:.4f}")
+    print(f"Test Accuracy: {test_results[1]:.4f}")
+    print("-" * 50)
 
 # Create and train ensemble
-print("\nTraining ensemble model...")
+print("\n" + "="*50)
+print("ENSEMBLE MODEL RESULTS")
+print("="*50)
+
 ensemble = SarcasmEnsemble(list(models.values()))
 ensemble_model = ensemble.build_ensemble()
-ensemble_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+ensemble_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
 
-# Prepare test data
-test_dataset = data_generator.generate_batches(test_texts, test_labels, batch_size=BATCH_SIZE, shuffle=False)
-test_steps = len(test_texts) // BATCH_SIZE
+# Train ensemble model
+history = ensemble_model.fit(
+    train_dataset, 
+    validation_data=val_dataset,
+    epochs=5,
+    steps_per_epoch=steps_per_epoch,
+    validation_steps=validation_steps,
+    verbose=1
+)
 
-# Evaluate all models
-print("\nEvaluating models...")
-results = {}
-for model_name, model in models.items():
-    print(f"\nEvaluating {model_name} model...")
-    y_pred, report = evaluate_model(model, test_dataset, test_steps, model_name)
-    results[model_name] = report
-    print(f"\n{model_name} Model Results:")
-    print(report)
+# Evaluate ensemble model on test set
+test_results = ensemble_model.evaluate(test_dataset, steps=test_steps)
 
-# Evaluate ensemble
-print("\nEvaluating ensemble model...")
-ensemble_pred, ensemble_report = evaluate_model(ensemble_model, test_dataset, test_steps, 'Ensemble')
-results['Ensemble'] = ensemble_report
+# Print ensemble results
 print("\nEnsemble Model Results:")
-print(ensemble_report)
+print(f"Training Accuracy: {history.history['accuracy'][-1]:.4f}")
+print(f"Validation Accuracy: {history.history['val_accuracy'][-1]:.4f}")
+print(f"Test Accuracy: {test_results[1]:.4f}")
+print("-" * 50)
 
-# Save results to file
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-with open(os.path.join(results_dir, f'model_results_{timestamp}.txt'), 'w') as f:
-    f.write("Model Evaluation Results\n")
-    f.write("======================\n\n")
-    for model_name, report in results.items():
-        f.write(f"\n{model_name} Model Results:\n")
-        f.write("-" * 50 + "\n")
-        f.write(report)
-        f.write("\n")
-
-print(f"\nResults have been saved to the '{results_dir}' directory.")
+print("\nAll models have been trained and evaluated.")
