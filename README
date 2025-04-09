@@ -1,4 +1,4 @@
-# Sarcasm Detection using Neural Network Ensemble
+#Sarcasm Detection using Neural Network Ensemble
 
 This repository contains a TensorFlow implementation of an ensemble neural network for detecting sarcasm in news headlines. The project implements and compares three different neural architectures (LSTM, Attention, and Transformer) and combines them into an ensemble model for improved performance.
 
