@@ -136,3 +136,20 @@ With optimized hyperparameters, the ensemble model achieves approximately 85.8% 
 - Attention: 84.0% accuracy  
 - Transformer: 82.4% accuracy
 - Ensemble: 85.8% accuracy
+
+
+
+
+# 1. Prerequisites
+sudo pacman -S docker aws-cli-v2
+sudo systemctl start docker
+newgrp docker   # or log out/in
+
+# 2. Fill in credentials
+nano terraform/main.tf   # set aws_access_key and aws_secret_key
+
+# 3. Deploy (takes ~10-15 min for first Docker build)
+cd terraform
+terraform init
+terraform apply
+The API URL is printed as output after apply completes.
