@@ -6,12 +6,6 @@ The model is deployed as a **fully serverless REST API on AWS**, allowing anyone
 
 ---
 
-## 🎬 Demo
-
-Watch a live walkthrough of the API in action: **https://youtu.be/6QDDyuPzelE**
-
----
-
 ## Project Structure
 
 ```
@@ -210,3 +204,9 @@ Each architecture captures sarcasm differently — the LSTM detects sequential p
 - Headlines requiring real-world knowledge to identify as sarcastic may be misclassified.
 - The API does not require authentication.
 - Lambda cold starts still occur if the function has been idle for more than ~15 minutes.
+
+---
+
+## 🎬 Demo
+
+Watch a live walkthrough of the API in action: **https://youtu.be/6QDDyuPzelE**
